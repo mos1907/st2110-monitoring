@@ -1,0 +1,219 @@
+version: '3.8'
+
+services:
+  # Prometheus - Metrics database
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: st2110-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=90d'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    networks:
+      - st2110-monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana - Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: st2110-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_INSTALL_PLUGINS=yesoreyeram-boomtable-panel,grafana-piechart-panel
+    networks:
+      - st2110-monitoring
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Alertmanager - Alert routing
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: st2110-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager:/etc/alertmanager
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - st2110-monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Node Exporter - Host metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: st2110-node-exporter
+    restart: unless-stopped
+    ports:
+      - "9101:9100"
+    command:
+      - '--path.rootfs=/host'
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - st2110-monitoring
+
+  # Blackbox Exporter - Endpoint probing
+  blackbox-exporter:
+    image: prom/blackbox-exporter:latest
+    container_name: st2110-blackbox-exporter
+    restart: unless-stopped
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./config/blackbox.yml:/config/blackbox.yml
+    command:
+      - '--config.file=/config/blackbox.yml'
+    networks:
+      - st2110-monitoring
+
+  # Custom ST 2110 RTP Exporter
+  st2110-rtp-exporter:
+    build:
+      context: ./exporters/rtp
+      dockerfile: Dockerfile
+    container_name: st2110-rtp-exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - ./config/streams.yaml:/etc/st2110/streams.yaml:ro
+    environment:
+      - CONFIG_FILE=/etc/st2110/streams.yaml
+      - LISTEN_ADDR=:9100
+    network_mode: host  # Required for packet capture
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    privileged: true  # Required for raw socket access
+
+  # Custom PTP Exporter
+  st2110-ptp-exporter:
+    build:
+      context: ./exporters/ptp
+      dockerfile: Dockerfile
+    container_name: st2110-ptp-exporter
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+    environment:
+      - DEVICE=camera-1
+      - INTERFACE=eth0
+      - LISTEN_ADDR=:9200
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+
+  # Custom gNMI Collector
+  st2110-gnmi-collector:
+    build:
+      context: ./exporters/gnmi
+      dockerfile: Dockerfile
+    container_name: st2110-gnmi-collector
+    restart: unless-stopped
+    ports:
+      - "9273:9273"
+    volumes:
+      - ./config/switches.yaml:/etc/st2110/switches.yaml:ro
+    environment:
+      - CONFIG_FILE=/etc/st2110/switches.yaml
+      - GNMI_USERNAME=prometheus
+      - GNMI_PASSWORD=${GNMI_PASSWORD}
+      - LISTEN_ADDR=:9273
+    networks:
+      - st2110-monitoring
+
+  # Loki - Log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: st2110-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./config/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - st2110-monitoring
+
+  # Promtail - Log shipper
+  promtail:
+    image: grafana/promtail:latest
+    container_name: st2110-promtail
+    restart: unless-stopped
+    volumes:
+      - ./config/promtail-config.yaml:/etc/promtail/config.yaml
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yaml
+    networks:
+      - st2110-monitoring
+    depends_on:
+      - loki
+
+  # Redis - For state/caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: st2110-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - st2110-monitoring
+
+networks:
+  st2110-monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  alertmanager_data:
+  loki_data:
+  redis_data:
+

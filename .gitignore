@@ -1,0 +1,53 @@
+# Environment variables
+.env
+
+# Build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+
+# Go workspace
+go.work
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Backups
+backups/
+
+# Configuration (keep examples)
+config/streams.yaml
+config/switches.yaml
+!config/*.example
+
+# Docker volumes
+prometheus_data/
+grafana_data/
+alertmanager_data/
+loki_data/
+redis_data/
+
+# Temporary files
+tmp/
+*.tmp
+

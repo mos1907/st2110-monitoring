@@ -1,0 +1,55 @@
+# ST 2110 Stream Definitions
+# Copy this file to streams.yaml and configure your streams
+
+streams:
+  # Video Streams
+  - name: "Camera 1 - Video"
+    stream_id: "cam1_vid"
+    multicast: "239.1.1.10:20000"
+    interface: "eth0"
+    type: "video"
+    format: "1080p60"
+    expected_bitrate: 2200000000  # 2.2 Gbps
+
+  - name: "Camera 2 - Video"
+    stream_id: "cam2_vid"
+    multicast: "239.1.1.12:20000"
+    interface: "eth0"
+    type: "video"
+    format: "1080p60"
+    expected_bitrate: 2200000000
+
+  # Audio Streams
+  - name: "Camera 1 - Audio"
+    stream_id: "cam1_aud"
+    multicast: "239.1.1.11:20000"
+    interface: "eth0"
+    type: "audio"
+    channels: 8
+    sample_rate: 48000
+
+  - name: "Camera 2 - Audio"
+    stream_id: "cam2_aud"
+    multicast: "239.1.1.13:20000"
+    interface: "eth0"
+    type: "audio"
+    channels: 8
+    sample_rate: 48000
+
+  # Ancillary Data
+  - name: "Closed Captions - Feed 1"
+    stream_id: "cc_feed1"
+    multicast: "239.1.1.20:20000"
+    interface: "eth0"
+    type: "ancillary"
+
+# ST 2110-22 (CBR Mode) Example
+  - name: "Studio Camera - CBR"
+    stream_id: "studio1_cbr"
+    multicast: "239.1.1.30:20000"
+    interface: "eth0"
+    type: "video"
+    format: "1080p60"
+    mode: "cbr"  # Constant Bit Rate
+    expected_bitrate: 2200000000
+

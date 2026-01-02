@@ -1,0 +1,115 @@
+groups:
+  - name: st2110_critical
+    interval: 5s
+    rules:
+      # High Packet Loss
+      - alert: ST2110HighPacketLoss
+        expr: st2110_rtp_packet_loss_rate > 0.01
+        for: 5s
+        labels:
+          severity: critical
+          team: broadcast
+        annotations:
+          summary: "High packet loss on {{ $labels.stream_name }}"
+          description: "Stream {{ $labels.stream_id }} has {{ $value }}% packet loss (threshold: 0.01%)"
+          runbook_url: "https://wiki.example.com/runbooks/packet-loss"
+
+      # Excessive Jitter
+      - alert: ST2110ExcessiveJitter
+        expr: st2110_rtp_jitter_microseconds > 1000
+        for: 10s
+        labels:
+          severity: warning
+          team: broadcast
+        annotations:
+          summary: "Excessive jitter on {{ $labels.stream_name }}"
+          description: "Stream {{ $labels.stream_id }} has {{ $value }}μs jitter (threshold: 1000μs)"
+
+      # Stream Down
+      - alert: ST2110StreamDown
+        expr: up{job="st2110-rtp"} == 0 or (time() - st2110_rtp_last_packet_timestamp) > 5
+        for: 10s
+        labels:
+          severity: critical
+          team: broadcast
+        annotations:
+          summary: "ST 2110 stream is down"
+          description: "No packets received for {{ $labels.stream_name }} in last 10 seconds"
+          runbook_url: "https://wiki.example.com/runbooks/stream-down"
+
+      # Bitrate Deviation
+      - alert: ST2110BitrateDeviation
+        expr: |
+          abs(st2110_rtp_bitrate_bps - on(stream_id) group_left st2110_rtp_expected_bitrate) / 
+          on(stream_id) group_left st2110_rtp_expected_bitrate > 0.05
+        for: 30s
+        labels:
+          severity: warning
+          team: broadcast
+        annotations:
+          summary: "Bitrate deviation on {{ $labels.stream_name }}"
+          description: "Stream {{ $labels.stream_id }} bitrate is {{ $value }}% off expected"
+
+  - name: st2110_ptp
+    interval: 5s
+    rules:
+      # PTP Offset Too High
+      - alert: ST2110PTPOffsetHigh
+        expr: abs(st2110_ptp_offset_nanoseconds) > 1000
+        for: 10s
+        labels:
+          severity: critical
+          team: broadcast
+        annotations:
+          summary: "PTP offset too high on {{ $labels.device }}"
+          description: "Device {{ $labels.device }} has {{ $value }}ns offset from master (threshold: 1000ns)"
+          runbook_url: "https://wiki.example.com/runbooks/ptp-offset"
+
+      # PTP Clock Not Locked
+      - alert: ST2110PTPNotLocked
+        expr: st2110_ptp_clock_state != 1
+        for: 30s
+        labels:
+          severity: critical
+          team: broadcast
+        annotations:
+          summary: "PTP clock not locked on {{ $labels.device }}"
+          description: "Device {{ $labels.device }} PTP clock state is {{ $value }} (0=FREERUN, 1=LOCKED, 2=HOLDOVER)"
+
+  - name: st2110_network
+    interval: 10s
+    rules:
+      # High Interface Errors
+      - alert: ST2110NetworkErrors
+        expr: rate(st2110_switch_interface_rx_errors[1m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          team: network
+        annotations:
+          summary: "High error rate on {{ $labels.switch }}/{{ $labels.interface }}"
+          description: "{{ $value }} errors/sec on switch interface"
+
+      # QoS Buffer Near Full
+      - alert: ST2110QoSBufferHigh
+        expr: st2110_switch_qos_buffer_utilization > 80
+        for: 30s
+        labels:
+          severity: warning
+          team: network
+        annotations:
+          summary: "QoS buffer high on {{ $labels.switch }}/{{ $labels.interface }}"
+          description: "Queue {{ $labels.queue }} is {{ $value }}% full (threshold: 80%)"
+
+      # QoS Drops Detected
+      - alert: ST2110QoSDrops
+        expr: rate(st2110_switch_qos_dropped_packets[1m]) > 0
+        for: 10s
+        labels:
+          severity: critical
+          team: network
+        annotations:
+          summary: "QoS packet drops on {{ $labels.switch }}/{{ $labels.interface }}"
+          description: "{{ $value }} packets/sec being dropped on queue {{ $labels.queue }}"
+          runbook_url: "https://wiki.example.com/runbooks/qos-drops"
+

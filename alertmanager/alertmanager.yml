@@ -1,0 +1,87 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# Alert routing tree
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  
+  routes:
+    # Critical alerts go to PagerDuty
+    - match:
+        severity: critical
+      receiver: 'pagerduty'
+      continue: true
+    
+    # All alerts also go to Slack
+    - match_re:
+        severity: (critical|warning)
+      receiver: 'slack'
+
+# Inhibition rules
+inhibit_rules:
+  # Suppress packet loss alerts if stream is down
+  - source_match:
+      alertname: 'ST2110StreamDown'
+    target_match:
+      alertname: 'ST2110HighPacketLoss'
+    equal: ['stream_id']
+  
+  # Suppress jitter alerts if high packet loss
+  - source_match:
+      alertname: 'ST2110HighPacketLoss'
+    target_match:
+      alertname: 'ST2110ExcessiveJitter'
+    equal: ['stream_id']
+
+# Receivers
+receivers:
+  - name: 'default'
+    email_configs:
+      - to: 'broadcast-team@example.com'
+        from: '${SMTP_FROM}'
+        smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+        auth_username: '${SMTP_USERNAME}'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '{{ .GroupLabels.alertname }} - {{ .Status | toUpper }}'
+
+  - name: 'slack'
+    slack_configs:
+      - channel: '#broadcast-alerts'
+        title: '{{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Details:*
+          {{ range .Labels.SortedPairs }} • *{{ .Name }}:* `{{ .Value }}`
+          {{ end }}
+          {{ end }}
+        actions:
+          - type: button
+            text: 'View in Grafana'
+            url: 'http://grafana:3000/d/st2110-monitoring?var-stream={{ .GroupLabels.stream_id }}'
+          - type: button
+            text: 'View Runbook'
+            url: '{{ .Annotations.runbook_url }}'
+          - type: button
+            text: 'Silence'
+            url: 'http://alertmanager:9093/#/silences/new?filter=%7B{{ range .Labels.SortedPairs }}{{ .Name }}%3D%22{{ .Value }}%22%2C{{ end }}%7D'
+
+  - name: 'pagerduty'
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '{{ .GroupLabels.alertname }}'
+        details:
+          summary: '{{ .Annotations.summary }}'
+          description: '{{ .Annotations.description }}'
+          severity: '{{ .Labels.severity }}'
+          stream: '{{ .Labels.stream_name }}'
+          runbook: '{{ .Annotations.runbook_url }}'
+
