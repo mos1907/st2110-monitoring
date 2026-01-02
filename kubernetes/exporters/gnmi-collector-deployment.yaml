@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: st2110-gnmi-collector
+  namespace: st2110-monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: st2110-gnmi-collector
+  template:
+    metadata:
+      labels:
+        app: st2110-gnmi-collector
+    spec:
+      containers:
+      - name: gnmi-collector
+        image: st2110-gnmi-collector:latest  # Build and push to your registry
+        args:
+          - '--config=/etc/st2110/switches.yaml'
+          - '--listen=:9273'
+        ports:
+        - containerPort: 9273
+          name: metrics
+        env:
+        - name: GNMI_USERNAME
+          value: "prometheus"
+        - name: GNMI_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: gnmi-secrets
+              key: password
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - name: config
+          mountPath: /etc/st2110
+      volumes:
+      - name: config
+        configMap:
+          name: gnmi-collector-config
+

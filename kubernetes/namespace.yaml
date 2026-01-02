@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: st2110-monitoring
+  labels:
+    name: st2110-monitoring
+    security: high
+

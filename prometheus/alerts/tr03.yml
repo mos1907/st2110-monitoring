@@ -1,0 +1,53 @@
+# TR-03 Video Quality Alert Rules
+# Based on SMPTE TR-03 compliance monitoring
+
+groups:
+  - name: st2110_video_quality
+    interval: 1s
+    rules:
+      # Buffer underrun = frame drop
+      - alert: ST2110BufferUnderrun
+        expr: increase(st2110_vrx_buffer_underruns_total[10s]) > 0
+        for: 0s  # Immediate
+        labels:
+          severity: critical
+          team: broadcast
+        annotations:
+          summary: "Buffer underrun on {{ $labels.stream_id }}"
+          description: "VRX buffer underrun detected - frames are being dropped!"
+          runbook_url: "https://wiki.example.com/runbooks/buffer-underrun"
+      
+      # Low compliance score
+      - alert: ST2110LowCompliance
+        expr: st2110_tr03_c_v_mean < 0.5
+        for: 5s
+        labels:
+          severity: warning
+          team: broadcast
+        annotations:
+          summary: "Low TR-03 compliance on {{ $labels.stream_id }}"
+          description: "C_V_MEAN = {{ $value }} (threshold: 0.5)"
+      
+      # Critical: buffer near empty
+      - alert: ST2110BufferCriticallyLow
+        expr: st2110_vrx_buffer_level_microseconds < 10000
+        for: 1s
+        labels:
+          severity: critical
+          team: broadcast
+        annotations:
+          summary: "VRX buffer critically low on {{ $labels.stream_id }}"
+          description: "Buffer at {{ $value }}μs (< 10ms) - underrun imminent!"
+          runbook_url: "https://wiki.example.com/runbooks/buffer-low"
+      
+      # Buffer overrun (excessive latency)
+      - alert: ST2110BufferOverrun
+        expr: increase(st2110_vrx_buffer_overruns_total[10s]) > 0
+        for: 0s
+        labels:
+          severity: warning
+          team: broadcast
+        annotations:
+          summary: "Buffer overrun on {{ $labels.stream_id }}"
+          description: "VRX buffer overrun detected - excessive latency"
+

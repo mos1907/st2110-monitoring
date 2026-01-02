@@ -1,0 +1,63 @@
+# Multicast and IGMP Alert Rules
+# Critical for ST 2110 multicast streaming
+
+groups:
+  - name: st2110_multicast
+    interval: 5s
+    rules:
+      # No IGMP querier = disaster after 260s
+      - alert: ST2110NoIGMPQuerier
+        expr: st2110_igmp_querier_present == 0
+        for: 10s
+        labels:
+          severity: critical
+          team: network
+        annotations:
+          summary: "No IGMP querier on VLAN {{ $labels.vlan }}"
+          description: "IGMP groups will timeout in 260 seconds without querier!"
+          runbook_url: "https://wiki.example.com/runbooks/igmp-querier"
+      
+      # Unknown multicast flooding
+      - alert: ST2110UnknownMulticastFlooding
+        expr: st2110_unknown_multicast_pps > 1000
+        for: 30s
+        labels:
+          severity: warning
+          team: network
+        annotations:
+          summary: "Unknown multicast flooding on {{ $labels.switch }}"
+          description: "{{ $value }} pps of unknown multicast (likely misconfigured source)"
+      
+      # Slow IGMP join
+      - alert: ST2110SlowIGMPJoin
+        expr: st2110_igmp_join_latency_microseconds > 1000000
+        for: 0s
+        labels:
+          severity: warning
+          team: network
+        annotations:
+          summary: "Slow IGMP join for {{ $labels.multicast_group }}"
+          description: "Join latency: {{ $value }}μs (> 1 second)"
+      
+      # Too many multicast groups (capacity issue)
+      - alert: ST2110TooManyMulticastGroups
+        expr: st2110_igmp_active_groups > 1000
+        for: 1m
+        labels:
+          severity: warning
+          team: network
+        annotations:
+          summary: "High multicast group count on {{ $labels.vlan }}"
+          description: "{{ $value }} groups (switch TCAM may be exhausted)"
+      
+      # IGMP membership timeout
+      - alert: ST2110IGMPMembershipTimeout
+        expr: st2110_igmp_membership_timeout_total > 0
+        for: 0s
+        labels:
+          severity: critical
+          team: network
+        annotations:
+          summary: "IGMP membership timeout on {{ $labels.interface }}"
+          description: "Multicast group {{ $labels.multicast_group }} timed out - stream may be lost!"
+

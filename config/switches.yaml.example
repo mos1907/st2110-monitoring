@@ -1,0 +1,50 @@
+# ST 2110 Network Switch Configuration
+# Copy this file to switches.yaml and configure your network switches
+
+switches:
+  # Arista EOS Switch
+  - name: "core-switch-1"
+    target: "192.168.1.10:6030"
+    username: "prometheus"
+    password: "${GNMI_PASSWORD}"
+    vendor: "arista"
+    vrf: "MGMT"  # Optional: VRF for management interface
+    ssl_profile: "BROADCAST_MONITORING"  # Optional: SSL profile name
+    
+  # Cisco Nexus Switch
+  - name: "core-switch-2"
+    target: "192.168.1.11:6030"
+    username: "prometheus"
+    password: "${GNMI_PASSWORD}"
+    vendor: "cisco"
+    vrf: "management"  # Cisco VRF name
+    
+  # Juniper QFX Switch
+  - name: "access-switch-1"
+    target: "192.168.1.20:6030"
+    username: "prometheus"
+    password: "${GNMI_PASSWORD}"
+    vendor: "juniper"
+    
+# Vendor-specific gNMI paths (optional overrides)
+gnmi_paths:
+  arista:
+    # Arista EOS-specific paths
+    interface_counters: "/interfaces/interface[name=*]/state/counters"
+    hw_queue_drops: "/Arista/eos/arista-exp-eos-qos/qos/interfaces/interface[name=*]/queues/queue[queue-id=*]/state/dropped-pkts"
+    ptp_status: "/Arista/eos/arista-exp-eos-ptp/ptp/instances/instance[instance-id=default]/state"
+    igmp_snooping: "/Arista/eos/arista-exp-eos-igmpsnooping/igmp-snooping/vlans/vlan[vlan-id=*]/state"
+    
+  cisco:
+    # Cisco NX-OS DME paths
+    interface_counters: "/System/intf-items/phys-items/PhysIf-list[id=*]/dbgIfIn-items"
+    qos_policy: "/System/ipqos-items/queuing-items/policy-items/out-items/sys-items/pmap-items/Name-list[name=ST2110-OUT]/cmap-items/Name-list[name=VIDEO]/stats-items"
+    tcam_utilization: "/System/tcam-items/utilization-items"
+    buffer_stats: "/System/intf-items/phys-items/PhysIf-list[id=*]/buffer-items"
+    
+  juniper:
+    # Juniper OpenConfig paths
+    interface_counters: "/interfaces/interface[name=*]/state/counters"
+    qos_queues: "/qos/interfaces/interface[name=*]/output/queues/queue[name=*]/state"
+    igmp_interfaces: "/network-instances/network-instance[name=default]/protocols/protocol[identifier=IGMP]/igmp/interfaces"
+

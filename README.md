@@ -52,20 +52,24 @@ st2110-monitoring/
 ├── exporters/
 │   ├── rtp/                     # RTP stream exporter
 │   │   ├── main.go
-│   │   ├── rtp/analyzer.go
-│   │   ├── exporter/prometheus.go
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   └── go.mod
 │   ├── ptp/                     # PTP timing exporter
 │   │   ├── main.go
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   └── go.mod
 │   ├── gnmi/                    # gNMI network collector
 │   │   ├── main.go
-│   │   └── Dockerfile
+│   │   ├── Dockerfile
+│   │   └── go.mod
 │   ├── synthetic/               # Test stream generator
 │   │   └── main.go
 │   └── vendor/                  # Vendor-specific exporters
-│       ├── sony/
-│       └── grassvalley/
+│       ├── arista/              # Arista EOS gNMI collector
+│       ├── cisco/               # Cisco Nexus gNMI collector
+│       ├── grassvalley/         # Grass Valley K-Frame REST API
+│       ├── evertz/              # Evertz EQX/VIP SNMP/API
+│       └── lawo/                # Lawo VSM REST API
 │
 ├── prometheus/
 │   ├── prometheus.yml           # Main configuration
@@ -79,7 +83,7 @@ st2110-monitoring/
 │   │   ├── datasources/
 │   │   └── dashboards/
 │   └── dashboards/
-│       └── st2110-production.json  # Main dashboard
+│       └── st2110-dashboard.json  # Main dashboard
 │
 ├── alertmanager/
 │   └── alertmanager.yml        # Alert routing
@@ -141,10 +145,45 @@ switches:
     target: "192.168.1.10:6030"
     username: "prometheus"
     password: "${GNMI_PASSWORD}"
-    vendor: "arista"
+    vendor: "arista"  # Options: arista, cisco, juniper
 ```
 
-### 3. Set Environment Variables
+**Supported Vendors:**
+- **Arista EOS**: Full gNMI support with hardware queue monitoring
+- **Cisco Nexus**: gNMI with DME (Data Management Engine) paths
+- **Juniper**: gNMI with OpenConfig models
+
+### 3. Vendor-Specific Integrations
+
+#### Network Switches (gNMI)
+
+**Arista EOS Configuration:**
+```bash
+# Enable gNMI on Arista switch
+switch(config)# management api gnmi
+switch(config-mgmt-api-gnmi)# transport grpc default
+switch(config-mgmt-api-gnmi-transport-default)# ssl profile default
+switch(config-mgmt-api-gnmi)# provider eos-native
+```
+
+**Cisco Nexus Configuration:**
+```bash
+# Enable gRPC/gNMI on Cisco Nexus
+switch(config)# feature grpc
+switch(config)# grpc port 6030
+switch(config)# feature nxapi
+```
+
+#### Broadcast Equipment (REST APIs)
+
+**Supported Integrations:**
+- **Grass Valley K-Frame**: REST API for card status, video inputs, crosspoint monitoring
+- **Evertz EQX/VIP**: SNMP and HTTP XML API for module status, IP flows, PTP status
+- **Lawo VSM**: REST API for device status, pathway monitoring, alarm aggregation
+
+See the main article for detailed integration examples and code samples.
+
+### 4. Set Environment Variables
 
 ```bash
 cp .env.example .env
@@ -259,6 +298,44 @@ st2110_switch_qos_buffer_utilization{switch, interface, queue}
 st2110_switch_qos_dropped_packets{switch, interface, queue}
 ```
 
+### Vendor-Specific Metrics
+
+**Arista EOS:**
+```
+arista_hw_queue_drops_total{switch, interface, queue}
+arista_ptp_lock_status{switch, domain}
+arista_igmp_snooping_groups{switch, vlan}
+arista_tcam_utilization_percent{switch, table}
+```
+
+**Cisco Nexus:**
+```
+cisco_nexus_tcam_utilization_percent{switch, table_type}
+cisco_nexus_qos_policy_drops_total{switch, policy, class}
+cisco_nexus_buffer_drops_total{switch, interface}
+```
+
+**Grass Valley K-Frame:**
+```
+grassvalley_kframe_card_status{chassis, slot, card_type}
+grassvalley_kframe_video_input_status{chassis, slot, input}
+grassvalley_kframe_crosspoint_count{chassis, router_level}
+```
+
+**Evertz EQX/VIP:**
+```
+evertz_eqx_module_status{chassis, slot, module_type}
+evertz_eqx_ip_flow_status{chassis, flow_id, direction}
+evertz_eqx_ptp_lock_status{chassis, module}
+```
+
+**Lawo VSM:**
+```
+lawo_vsm_connection_status{device_name, device_type}
+lawo_vsm_pathway_status{pathway_name, source, destination}
+lawo_vsm_active_alarms{severity}
+```
+
 ## 🔒 Security
 
 - TLS/mTLS for Prometheus scraping
@@ -331,6 +408,8 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 - [Prometheus Documentation](https://prometheus.io/docs/)
 - [Grafana Documentation](https://grafana.com/docs/)
 - [gNMI Specification](https://github.com/openconfig/gnmi)
+- [Arista EOS gNMI Guide](https://www.arista.com/en/um-eos/eos-gnmi)
+- [Cisco Nexus gRPC/gNMI Configuration](https://www.cisco.com/c/en/us/td/docs/switches/datacenter/nexus9000/sw/7-x/programmability/guide/b_Cisco_Nexus_9000_Series_NX-OS_Programmability_Guide_7x/b_Cisco_Nexus_9000_Series_NX-OS_Programmability_Guide_7x_chapter_011000.html)
 
 ---
 

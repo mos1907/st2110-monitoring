@@ -1,0 +1,364 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "st2110-monitoring",
+    "title": "ST 2110 Production Monitoring",
+    "tags": ["st2110", "broadcast", "production"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "1s",
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "timepicker": {
+      "refresh_intervals": ["1s", "5s", "10s", "30s", "1m"],
+      "time_options": ["5m", "15m", "1h", "6h", "12h", "24h"]
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "stream",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(st2110_rtp_packets_received_total, stream_name)",
+          "multi": true,
+          "includeAll": true,
+          "allValue": ".*",
+          "refresh": 1
+        },
+        {
+          "name": "switch",
+          "type": "query",
+          "datasource": "Prometheus",
+          "query": "label_values(st2110_switch_interface_rx_bytes, switch)",
+          "multi": true,
+          "includeAll": true,
+          "refresh": 1
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "type": "stat",
+        "title": "Critical Alerts",
+        "targets": [
+          {
+            "expr": "count(ALERTS{alertstate=\"firing\",severity=\"critical\"})",
+            "legendFormat": "Critical Alerts"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "orientation": "auto",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "type": "stat",
+        "title": "Active Streams",
+        "targets": [
+          {
+            "expr": "count(rate(st2110_rtp_packets_received_total[30s]) > 0)",
+            "legendFormat": "Active Streams"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "textMode": "value_and_name"
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 10, "w": 24, "x": 0, "y": 8},
+        "type": "timeseries",
+        "title": "RTP Packet Loss Rate (%)",
+        "targets": [
+          {
+            "expr": "st2110_rtp_packet_loss_rate{stream_name=~\"$stream\"}",
+            "legendFormat": "{{stream_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 4,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 0.001, "color": "yellow"},
+                {"value": 0.01, "color": "red"}
+              ]
+            },
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "linear",
+              "fillOpacity": 10,
+              "showPoints": "never"
+            }
+          }
+        },
+        "options": {
+          "tooltip": {"mode": "multi"},
+          "legend": {"displayMode": "table", "placement": "right"}
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 10, "w": 12, "x": 0, "y": 18},
+        "type": "timeseries",
+        "title": "RTP Jitter (μs)",
+        "targets": [
+          {
+            "expr": "st2110_rtp_jitter_microseconds{stream_name=~\"$stream\"}",
+            "legendFormat": "{{stream_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "µs",
+            "decimals": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 500, "color": "yellow"},
+                {"value": 1000, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 10, "w": 12, "x": 12, "y": 18},
+        "type": "timeseries",
+        "title": "PTP Offset from Master (μs)",
+        "targets": [
+          {
+            "expr": "st2110_ptp_offset_nanoseconds / 1000",
+            "legendFormat": "{{device}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "µs",
+            "decimals": 2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": -10, "color": "red"},
+                {"value": -1, "color": "yellow"},
+                {"value": 1, "color": "green"},
+                {"value": 10, "color": "yellow"},
+                {"value": 10, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 10, "w": 12, "x": 0, "y": 28},
+        "type": "timeseries",
+        "title": "Stream Bitrate (Gbps)",
+        "targets": [
+          {
+            "expr": "st2110_rtp_bitrate_bps{stream_name=~\"$stream\"} / 1e9",
+            "legendFormat": "{{stream_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "Gbps",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 7,
+        "gridPos": {"h": 10, "w": 12, "x": 12, "y": 28},
+        "type": "timeseries",
+        "title": "Switch Port Utilization (%)",
+        "targets": [
+          {
+            "expr": "rate(st2110_switch_interface_tx_bytes{switch=~\"$switch\"}[1m]) * 8 / 10e9 * 100",
+            "legendFormat": "{{switch}} - {{interface}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 80, "color": "yellow"},
+                {"value": 90, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "gridPos": {"h": 10, "w": 12, "x": 0, "y": 38},
+        "type": "timeseries",
+        "title": "VRX Buffer Level (ms)",
+        "targets": [
+          {
+            "expr": "st2110_vrx_buffer_level_microseconds{stream_name=~\"$stream\"} / 1000",
+            "legendFormat": "{{stream_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 20, "color": "yellow"},
+                {"value": 30, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "gridPos": {"h": 10, "w": 12, "x": 12, "y": 38},
+        "type": "timeseries",
+        "title": "TR-03 Compliance Score",
+        "targets": [
+          {
+            "expr": "st2110_tr03_c_v_mean{stream_name=~\"$stream\"}",
+            "legendFormat": "{{stream_name}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 0.5, "color": "yellow"},
+                {"value": 0.8, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 10,
+        "gridPos": {"h": 10, "w": 12, "x": 0, "y": 48},
+        "type": "timeseries",
+        "title": "IGMP Active Groups",
+        "targets": [
+          {
+            "expr": "st2110_igmp_active_groups",
+            "legendFormat": "{{vlan}} - {{interface}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 11,
+        "gridPos": {"h": 10, "w": 12, "x": 12, "y": 48},
+        "type": "timeseries",
+        "title": "QoS Dropped Packets",
+        "targets": [
+          {
+            "expr": "rate(st2110_switch_qos_dropped_packets{switch=~\"$switch\"}[1m])",
+            "legendFormat": "{{switch}} - {{interface}} - {{queue}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "pps"
+          }
+        }
+      },
+      {
+        "id": 12,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 58},
+        "type": "table",
+        "title": "Stream Health Summary",
+        "targets": [
+          {
+            "expr": "st2110_rtp_packets_received_total{stream_name=~\"$stream\"}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "indexByName": {
+                "stream_name": 0,
+                "multicast": 1,
+                "Value": 2
+              },
+              "renameByName": {
+                "stream_name": "Stream",
+                "multicast": "Multicast",
+                "Value": "Packets RX"
+              }
+            }
+          },
+          {
+            "id": "merge",
+            "options": {}
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "sortBy": [{"displayName": "Packets RX", "desc": true}]
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertstate=\"firing\"}",
+          "name": "Alerts",
+          "iconColor": "red"
+        }
+      ]
+    }
+  }
+}
+
