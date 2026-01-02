@@ -26,7 +26,7 @@ Production-ready monitoring solution for SMPTE ST 2110 professional media networ
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/st2110-monitoring
+git clone https://github.com/mos1907/st2110-monitoring
 cd st2110-monitoring
 
 # Configure your streams
@@ -398,7 +398,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/st2110-monitoring/issues)
+- **Issues**: [GitHub Issues](https://github.com/mos1907/st2110-monitoring/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/yourusername/st2110-monitoring/discussions)
 - **Email**: murat@muratdemirci.com.tr
 
