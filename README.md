@@ -400,7 +400,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 - **Issues**: [GitHub Issues](https://github.com/yourusername/st2110-monitoring/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/yourusername/st2110-monitoring/discussions)
-- **Email**: support@example.com
+- **Email**: murat@muratdemirci.com.tr
 
 ## 🎓 Related Resources
 
